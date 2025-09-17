@@ -1,36 +1,109 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Klyra SaaS Dashboard
+
+A modern, responsive SaaS management dashboard built with Next.js, TypeScript, and shadcn/ui.
+
+## Features
+
+- **Dashboard Overview**: Key metrics including MRR, Active Users, Churn Rate, and CAC
+- **Revenue Analytics**: Interactive charts showing ARR and MRR trends over time
+- **Live Activity Feed**: Real-time user actions and events
+- **Geographic Distribution**: Global user breakdown with country-specific data
+- **Subscription Plans**: Visual breakdown of pricing tiers with pie charts
+- **Responsive Design**: Mobile-friendly with collapsible sidebar navigation
+- **Modern UI**: Built with shadcn/ui components and Tailwind CSS
+- **Klyra Branding**: Custom purple-blue gradient theme
+
+## Tech Stack
+
+- **Framework**: Next.js 14 with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **UI Components**: shadcn/ui
+- **Charts**: Recharts
+- **Icons**: Lucide React
 
 ## Getting Started
 
-First, run the development server:
-
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/matiastonello92/saas-dashboard.git
+cd saas-dashboard
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+bun install
+# or
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Run the development server:
+```bash
+bun dev
+# or
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+├── app/
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx
+├── components/
+│   ├── ui/                 # shadcn/ui components
+│   ├── dashboard-layout.tsx
+│   ├── metrics-cards.tsx
+│   ├── revenue-chart.tsx
+│   ├── live-activity.tsx
+│   ├── geographic-distribution.tsx
+│   └── subscription-plans.tsx
+├── lib/
+│   └── utils.ts
+└── hooks/
+    └── use-mobile.ts
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## API Integration
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The dashboard is built with API integration in mind. Each component uses mock data that can be easily replaced with real API calls:
 
-## Deploy on Vercel
+- **MetricsCards**: Replace mock metrics with API calls to your analytics endpoints
+- **RevenueChart**: Connect to your revenue/billing API
+- **LiveActivity**: Integrate with real-time event streams
+- **GeographicDistribution**: Connect to user analytics API
+- **SubscriptionPlans**: Link to your subscription management system
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Customization
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Branding
+- Update the logo and colors in `components/dashboard-layout.tsx`
+- Modify the gradient theme in the Tailwind classes
+- Replace placeholder brand elements with actual Klyra assets
+
+### Data Sources
+- Replace mock data in each component with API calls
+- Add loading states and error handling
+- Implement real-time updates where needed
+
+## Deployment
+
+The dashboard can be deployed to any platform that supports Next.js:
+
+- **Vercel**: `vercel deploy`
+- **Netlify**: Connect your GitHub repository
+- **Docker**: Use the included Dockerfile (if added)
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.
