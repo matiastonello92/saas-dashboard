@@ -1,0 +1,28 @@
+#!/bin/bash
+
+echo "🚀 Klyra Dashboard - GitHub Push Script"
+echo "======================================="
+echo ""
+echo "Your repository is ready to push to: https://github.com/matiastonello92/saas-dashboard"
+echo ""
+echo "Choose your preferred method:"
+echo ""
+echo "1. Using GitHub CLI (Recommended):"
+echo "   gh auth login"
+echo "   git push -u origin main"
+echo ""
+echo "2. Using Personal Access Token:"
+echo "   git push -u origin main"
+echo "   (Enter your GitHub username and Personal Access Token when prompted)"
+echo ""
+echo "3. Using SSH:"
+echo "   git remote set-url origin git@github.com:matiastonello92/saas-dashboard.git"
+echo "   git push -u origin main"
+echo ""
+echo "📁 Current repository status:"
+git status --short
+echo ""
+echo "📝 Recent commits:"
+git log --oneline -3
+echo ""
+echo "🌐 Live demo: https://klyra-dashboard.lindy.site"
