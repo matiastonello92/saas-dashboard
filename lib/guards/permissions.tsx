@@ -18,6 +18,7 @@ export interface PermissionGuardProps {
 }
 
 export function PermissionGuard({ children, permission, fallback = null }: PermissionGuardProps) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasPermission, setHasPermission] = useState(false);
