@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -19,7 +21,7 @@ import {
 } from "lucide-react"
 
 const sidebarItems = [
-  { icon: BarChart3, label: "Overview", href: "/", active: true },
+  { icon: BarChart3, label: "Overview", href: "/" },
   { icon: BarChart3, label: "Analytics", href: "/analytics" },
   { icon: Users, label: "Users", href: "/users" },
   { icon: DollarSign, label: "Revenue", href: "/revenue" },
@@ -37,6 +39,7 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const pathname = usePathname()
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
@@ -76,19 +79,23 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
         <ScrollArea className="flex-1 px-3 py-4">
           <nav className="space-y-1">
-            {sidebarItems.map((item) => (
-              <Button
-                key={item.href}
-                variant={item.active ? "secondary" : "ghost"}
-                className={cn(
-                  "w-full justify-start text-white/80 hover:text-white hover:bg-white/10",
-                  item.active && "bg-blue-600 text-white hover:bg-blue-700"
-                )}
-              >
-                <item.icon className="mr-3 h-4 w-4" />
-                {item.label}
-              </Button>
-            ))}
+            {sidebarItems.map((item) => {
+              const isActive = pathname === item.href
+              return (
+                <Link key={item.href} href={item.href}>
+                  <Button
+                    variant={isActive ? "secondary" : "ghost"}
+                    className={cn(
+                      "w-full justify-start text-white/80 hover:text-white hover:bg-white/10",
+                      isActive && "bg-blue-600 text-white hover:bg-blue-700"
+                    )}
+                  >
+                    <item.icon className="mr-3 h-4 w-4" />
+                    {item.label}
+                  </Button>
+                </Link>
+              )
+            })}
           </nav>
         </ScrollArea>
       </div>
