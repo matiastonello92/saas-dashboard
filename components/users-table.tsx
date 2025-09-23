@@ -61,9 +61,11 @@ export default function UsersTable() {
         <Input
           placeholder="Search users…"
           value={search}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onChange={(e: any) => setSearch(e.target.value)}
           className="max-w-sm"
         />
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         <Select value={status} onValueChange={(v: any) => onStatusChange(v as StatusFilter)}>
           <option value="all">All</option>
           <option value="active">Active</option>
@@ -93,8 +95,11 @@ export default function UsersTable() {
           <tbody>
             {data.items.map((u) => {
               // org fallback: prova una serie di campi comuni senza rompere il layout
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const orgName =
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (u as any)?.org_name ??
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (u as any)?.organization?.name ??
                 ((u as any)?.organizations?.[0]?.name) ??
                 '—';
