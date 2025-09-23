@@ -41,6 +41,7 @@ export function useUsers(initial?: UsersFilter) {
         if (!mounted) return;
         setData(res);
         setStatus('success');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (e: any) {
         if (!mounted || e?.name === 'AbortError') return;
         setError(e);
