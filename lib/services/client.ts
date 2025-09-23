@@ -74,7 +74,7 @@ async function apiRequest<T>(path: string, method: HttpMethod, init: ApiFetchIni
   if (auth) {
     const token = await getAccessToken();
     if (!token && auth === 'required') {
-      throw new ApiError('Missing auth token', 401, 'NO_TOKEN');
+      throw new ApiError('No auth token available', 401, 'UNAUTHENTICATED');
     }
     if (token) {
       finalHeaders['Authorization'] = `Bearer ${token}`;
