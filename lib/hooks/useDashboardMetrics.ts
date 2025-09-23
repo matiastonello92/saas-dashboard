@@ -24,6 +24,7 @@ export function useDashboardMetrics() {
         if (!mounted) return;
         setData(res ?? null);
         setStatus('success');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (e: any) {
         if (!mounted) return;
         if (e?.name === 'AbortError') return;
