@@ -1,25 +1,24 @@
 // lib/guards/permissions.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
-import { getMyPermissions } from '@/lib/services/me';
+import { useEffect, useState, type ReactNode } from 'react';
+import { getMyPermissions, type MyPermission } from '@/lib/services/me';
 
-export interface Permission {
-  id: string;
-  name: string;
-  resource: string;
-  action: string;
+export interface Permission extends MyPermission {
+  id?: string;
+  name?: string;
+  resource?: string;
+  action?: string;
 }
 
 export interface PermissionGuardProps {
-  children: React.ReactNode;
-  permission: string; // formato: "resource:action" es. "users:read", "users:write"
-  fallback?: React.ReactNode;
+  children: ReactNode;
+  permission: string; // chiave permesso es. "admin:read"
+  fallback?: ReactNode;
 }
 
 export function PermissionGuard({ children, permission, fallback = null }: PermissionGuardProps) {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [, setPermissions] = useState<Permission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasPermission, setHasPermission] = useState(false);
 
@@ -27,15 +26,17 @@ export function PermissionGuard({ children, permission, fallback = null }: Permi
     async function loadPermissions() {
       try {
         const data = await getMyPermissions();
-        setPermissions(data.permissions || []);
-        
-        // Check se l'utente ha il permesso richiesto
-        const [resource, action] = permission.split(':');
-        const hasAccess = data.permissions?.some((p: Permission) => 
-          p.resource === resource && p.action === action
-        ) || false;
-        
-        setHasPermission(hasAccess);
+        const permissionList = (data.permissions ?? []) as Permission[];
+        setPermissions(permissionList);
+
+        const permissionKeys = new Set(
+          permissionList
+            .map((p) => p.key)
+            .filter((key): key is string => typeof key === 'string' && key.length > 0)
+        );
+        const requiredKey = permission.trim();
+
+        setHasPermission(requiredKey.length > 0 && permissionKeys.has(requiredKey));
       } catch (error) {
         console.error('Failed to load permissions:', error);
         setHasPermission(false);
@@ -68,7 +69,8 @@ export function usePermissions() {
     async function loadPermissions() {
       try {
         const data = await getMyPermissions();
-        setPermissions(data.permissions || []);
+        const permissionList = (data.permissions ?? []) as Permission[];
+        setPermissions(permissionList);
         setError(null);
       } catch (err) {
         setError(err as Error);
@@ -81,9 +83,13 @@ export function usePermissions() {
     loadPermissions();
   }, []);
 
-  const hasPermission = (permission: string): boolean => {
-    const [resource, action] = permission.split(':');
-    return permissions.some(p => p.resource === resource && p.action === action);
+  const hasPermission = (requiredKey: string): boolean => {
+    const normalizedKey = requiredKey.trim();
+    if (!normalizedKey) {
+      return false;
+    }
+
+    return permissions.some((p) => p.key === normalizedKey);
   };
 
   return {
