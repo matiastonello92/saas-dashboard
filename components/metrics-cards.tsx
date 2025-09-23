@@ -52,11 +52,11 @@ export function MetricsCards() {
     liveMetrics
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   // Stati di caricamento/errore senza toccare il markup
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const isLoadingMetricsUI = typeof isLoadingMetrics !== 'undefined' ? isLoadingMetrics : false;
   const isErrorMetricsUI = typeof isErrorMetrics !== 'undefined' ? isErrorMetrics : false;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
