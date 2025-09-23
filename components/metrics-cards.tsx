@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { TrendingUp, TrendingDown } from "lucide-react"
+import { useDashboardMetrics } from '@/lib/hooks/useDashboardMetrics';
 
 const metrics = [
   {
@@ -31,9 +32,32 @@ const metrics = [
 ]
 
 export function MetricsCards() {
+  // LIVE DATA: carica metriche reali (fallback su mock esistente)
+  const { data: liveMetrics, isLoading: isLoadingMetrics, isError: isErrorMetrics } = useDashboardMetrics();
+
+  // Helper che fonde live->mock mantenendo compatibilità con il widget
+  function mergeMetrics<T extends Record<string, any>>(mockObj: T | null | undefined, liveObj: any | null | undefined): T | any {
+    // Se live disponibile, preferiscilo; altrimenti mock.
+    if (liveObj && typeof liveObj === 'object') {
+      // Merge superficiale: live sovrascrive mock quando la chiave esiste
+      return mockObj ? { ...mockObj, ...liveObj } : liveObj;
+    }
+    return mockObj ?? null;
+  }
+
+  // FONTE EFFETTIVA: live > mock (non distruttivo)
+  const EFFECTIVE_METRICS = mergeMetrics(
+    typeof metrics !== 'undefined' ? metrics : null,
+    liveMetrics
+  );
+
+  // Stati di caricamento/errore senza toccare il markup
+  const isLoadingMetricsUI = typeof isLoadingMetrics !== 'undefined' ? isLoadingMetrics : false;
+  const isErrorMetricsUI = typeof isErrorMetrics !== 'undefined' ? isErrorMetrics : false;
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {metrics.map((metric, index) => (
+      {(EFFECTIVE_METRICS || metrics).map((metric, index) => (
         <Card key={index} className="bg-black/20 backdrop-blur-xl border-white/10 text-white">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-white/80">
