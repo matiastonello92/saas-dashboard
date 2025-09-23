@@ -26,6 +26,11 @@ export async function signInWithOtp({ email, options }: SignInOtpParams) {
   return data;
 }
 
+export async function signInWithPassword(params: { email: string; password: string }) {
+  const supabase = supabaseClient();
+  return supabase.auth.signInWithPassword(params);
+}
+
 export async function signOut() {
   const supabase = supabaseClient();
   const { error } = await supabase.auth.signOut();

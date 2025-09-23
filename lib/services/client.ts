@@ -71,11 +71,14 @@ async function apiRequest<T>(path: string, method: HttpMethod, init: ApiFetchIni
   }
 
   // JWT
-  if (auth) {
+  if (auth === 'required') {
     const token = await getAccessToken();
-    if (!token && auth === 'required') {
-      throw new ApiError('Missing auth token', 401, 'NO_TOKEN');
+    if (!token) {
+      throw new ApiError('No auth token available', 401, 'UNAUTHENTICATED');
     }
+    finalHeaders['Authorization'] = `Bearer ${token}`;
+  } else if (auth) {
+    const token = await getAccessToken();
     if (token) {
       finalHeaders['Authorization'] = `Bearer ${token}`;
     }
