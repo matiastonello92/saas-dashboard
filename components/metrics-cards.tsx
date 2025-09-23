@@ -4,7 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { TrendingUp, TrendingDown } from "lucide-react"
 import { useDashboardMetrics } from '@/lib/hooks/useDashboardMetrics';
 
-const metrics = [
+type MetricCard = {
+  title: string;
+  value: string;
+  change?: string;
+  trend?: 'up' | 'down';
+};
+
+const metrics: MetricCard[] = [
   {
     title: "Monthly Recurring Revenue",
     value: "$847,250",
@@ -31,58 +38,72 @@ const metrics = [
   }
 ]
 
-export function MetricsCards() {
-  // LIVE DATA: carica metriche reali (fallback su mock esistente)
-  const { data: liveMetrics, isLoading: isLoadingMetrics, isError: isErrorMetrics } = useDashboardMetrics();
-
-  // Helper che fonde live->mock mantenendo compatibilità con il widget
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function mergeMetrics<T extends Record<string, any>>(mockObj: T | null | undefined, liveObj: any | null | undefined): T | any {
-    // Se live disponibile, preferiscilo; altrimenti mock.
-    if (liveObj && typeof liveObj === 'object') {
-      // Merge superficiale: live sovrascrive mock quando la chiave esiste
-      return mockObj ? { ...mockObj, ...liveObj } : liveObj;
-    }
-    return mockObj ?? null;
+function isMetricCard(value: unknown): value is MetricCard {
+  if (!value || typeof value !== 'object') {
+    return false;
   }
 
-  // FONTE EFFETTIVA: live > mock (non distruttivo)
-  const EFFECTIVE_METRICS = mergeMetrics(
-    typeof metrics !== 'undefined' ? metrics : null,
-    liveMetrics
-  );
+  const candidate = value as Record<string, unknown>;
 
-  // Stati di caricamento/errore senza toccare il markup
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const isLoadingMetricsUI = typeof isLoadingMetrics !== 'undefined' ? isLoadingMetrics : false;
-  const isErrorMetricsUI = typeof isErrorMetrics !== 'undefined' ? isErrorMetrics : false;
+  if (typeof candidate.title !== 'string' || typeof candidate.value !== 'string') {
+    return false;
+  }
+
+  if ('change' in candidate && candidate.change !== undefined && typeof candidate.change !== 'string') {
+    return false;
+  }
+
+  if ('trend' in candidate && candidate.trend !== undefined) {
+    return candidate.trend === 'up' || candidate.trend === 'down';
+  }
+
+  return true;
+}
+
+export function MetricsCards() {
+  const { data: liveMetrics } = useDashboardMetrics();
+
+  let liveMetricList: MetricCard[] = [];
+
+  if (Array.isArray(liveMetrics)) {
+    liveMetricList = liveMetrics.filter(isMetricCard);
+  } else if (liveMetrics && typeof liveMetrics === 'object') {
+    liveMetricList = Object.values(liveMetrics as Record<string, unknown>).filter(isMetricCard);
+  }
+
+  const source: MetricCard[] = liveMetricList.length > 0 ? liveMetricList : metrics;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {(EFFECTIVE_METRICS || metrics).map((metric, index) => (
-        <Card key={index} className="bg-black/20 backdrop-blur-xl border-white/10 text-white">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-white/80">
-              {metric.title}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="text-2xl font-bold">{metric.value}</div>
-              <div className={`flex items-center text-sm ${
-                metric.trend === 'up' ? 'text-green-400' : 'text-red-400'
-              }`}>
-                {metric.trend === 'up' ? (
-                  <TrendingUp className="h-4 w-4 mr-1" />
-                ) : (
-                  <TrendingDown className="h-4 w-4 mr-1" />
-                )}
-                {metric.change}
+      {source.map((metric, index) => {
+        const trend = metric.trend === 'down' ? 'down' : 'up';
+        const change = metric.change ?? '—';
+
+        return (
+          <Card key={index} className="bg-black/20 backdrop-blur-xl border-white/10 text-white">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-white/80">
+                {metric.title}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="text-2xl font-bold">{metric.value}</div>
+                <div className={`flex items-center text-sm ${
+                  trend === 'up' ? 'text-green-400' : 'text-red-400'
+                }`}>
+                  {trend === 'up' ? (
+                    <TrendingUp className="h-4 w-4 mr-1" />
+                  ) : (
+                    <TrendingDown className="h-4 w-4 mr-1" />
+                  )}
+                  {change}
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+            </CardContent>
+          </Card>
+        )
+      })}
     </div>
   )
 }
