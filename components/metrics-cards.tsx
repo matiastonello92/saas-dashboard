@@ -36,6 +36,7 @@ export function MetricsCards() {
   const { data: liveMetrics, isLoading: isLoadingMetrics, isError: isErrorMetrics } = useDashboardMetrics();
 
   // Helper che fonde live->mock mantenendo compatibilità con il widget
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function mergeMetrics<T extends Record<string, any>>(mockObj: T | null | undefined, liveObj: any | null | undefined): T | any {
     // Se live disponibile, preferiscilo; altrimenti mock.
     if (liveObj && typeof liveObj === 'object') {
@@ -51,7 +52,9 @@ export function MetricsCards() {
     liveMetrics
   );
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   // Stati di caricamento/errore senza toccare il markup
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const isLoadingMetricsUI = typeof isLoadingMetrics !== 'undefined' ? isLoadingMetrics : false;
   const isErrorMetricsUI = typeof isErrorMetrics !== 'undefined' ? isErrorMetrics : false;
 
