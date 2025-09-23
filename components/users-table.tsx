@@ -65,7 +65,7 @@ export default function UsersTable() {
           onChange={(e: any) => setSearch(e.target.value)}
           className="max-w-sm"
         />
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         <Select value={status} onValueChange={(v: any) => onStatusChange(v as StatusFilter)}>
           <option value="all">All</option>
           <option value="active">Active</option>
@@ -101,6 +101,7 @@ export default function UsersTable() {
                 (u as any)?.org_name ??
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (u as any)?.organization?.name ??
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 ((u as any)?.organizations?.[0]?.name) ??
                 '—';
 
