@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { UserChip } from "@/components/UserChip"
 import { 
   BarChart3, 
   Users, 
@@ -119,13 +120,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </div>
           
-          <div className="flex items-center space-x-4">
-            <div className="text-right">
-              <p className="text-white text-sm font-medium">Admin User</p>
-              <p className="text-white/60 text-xs">admin@klyra.com</p>
-            </div>
-            <div className="w-8 h-8 bg-gradient-to-r from-cyan-400 to-purple-400 rounded-full"></div>
-          </div>
+          <UserChip />
         </header>
 
         {/* Main content area */}

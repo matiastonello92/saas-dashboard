@@ -1,68 +1,34 @@
-// lib/auth.ts
-// Auth di base con Supabase: OTP email, signOut, getSession e listener.
-// Non modifica la UI; fornisce solo funzioni da richiamare nei prossimi step.
+'use client';
 
-import type { Session, AuthChangeEvent } from '@supabase/supabase-js';
-import { supabaseClient } from './supabase';
+import { createBrowserClient } from '@supabase/ssr';
 
-export type SignInOtpParams = {
-  email: string;
-  options?: {
-    redirectTo?: string; // URL di redirect post-login (verifica email)
-    shouldCreateUser?: boolean; // default true
+let browserClient: ReturnType<typeof createBrowserClient> | null = null;
+
+function requireEnv(name: string) {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`[auth] Missing env var: ${name}`);
   }
-};
-
-export async function signInWithOtp({ email, options }: SignInOtpParams) {
-  const supabase = supabaseClient();
-  const { data, error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: options?.redirectTo,
-      shouldCreateUser: options?.shouldCreateUser ?? true,
-    },
-  });
-  if (error) throw error;
-  return data;
+  return value;
 }
 
-export async function signInWithPassword(params: { email: string; password: string }) {
-  const supabase = supabaseClient();
-  return supabase.auth.signInWithPassword(params);
+export function getBrowserSupabase() {
+  if (browserClient) return browserClient;
+
+  const url = requireEnv('NEXT_PUBLIC_SUPABASE_URL');
+  const anonKey = requireEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+
+  browserClient = createBrowserClient(url, anonKey);
+  return browserClient;
+}
+
+export async function signInWithEmailPassword(email: string, password: string) {
+  const supabase = getBrowserSupabase();
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  return { data, error };
 }
 
 export async function signOut() {
-  const supabase = supabaseClient();
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
-  return true;
+  const supabase = getBrowserSupabase();
+  await supabase.auth.signOut();
 }
-
-export async function getSession(): Promise<Session | null> {
-  const supabase = supabaseClient();
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
-  return data.session ?? null;
-}
-
-/**
- * Listener dei cambi di stato auth.
- * Ritorna una funzione di unsubscribe per rimuovere il listener.
- */
-export function onAuthStateChange(
-  callback: (event: AuthChangeEvent, session: Session | null) => void
-) {
-  const supabase = supabaseClient();
-  const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
-    callback(event, session);
-  });
-  return () => {
-    subscription.subscription?.unsubscribe();
-  };
-}
-
-// Esempi d'uso (non eseguire qui):
-// await signInWithOtp({ email: 'user@example.com', options: { redirectTo: 'https://app.example.com/auth/callback' } });
-// await signOut();
-// const session = await getSession();
-// const off = onAuthStateChange((event, session) => console.log(event, session)); // off() per rimuovere
