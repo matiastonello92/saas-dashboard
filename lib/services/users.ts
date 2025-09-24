@@ -8,18 +8,19 @@ import { api } from './client';
 
 export interface UserSummary {
   id: string;
-  email: string;
+  email: string | null;
+  created_at?: string | null;
+  last_sign_in_at?: string | null;
   display_name?: string;
-  created_at?: string;
   status?: 'active' | 'invited' | 'disabled';
-  // estendere quando disponibile lo schema reale
 }
 
 export interface PaginatedUsers {
-  items: UserSummary[];
-  total: number;
+  users: UserSummary[];
   page: number;
-  pageSize: number;
+  perPage: number;
+  nextPage: number | null;
+  total?: number;
 }
 
 export interface CreateUserInput {
@@ -39,23 +40,31 @@ export interface UpdateUserInput {
  * Esempio: await listUsers({ page: 1, pageSize: 20, q: 'mario' });
  */
 export async function listUsers(params?: {
-  page?: number;       // default 1
-  pageSize?: number;   // default 20
-  q?: string;          // fulltext query (opzionale)
-  status?: 'active' | 'invited' | 'disabled';
+  page?: number;
+  pageSize?: number;
+  perPage?: number;
   signal?: AbortSignal;
 }): Promise<PaginatedUsers> {
-  const { page = 1, pageSize = 20, q, status, signal } = params ?? {};
+  const { page = 1, pageSize, perPage: perPageParam, signal } = params ?? {};
+  const size = perPageParam ?? pageSize ?? 50;
+  const perPage = Math.min(200, Math.max(1, size));
+
   const search = new URLSearchParams();
   search.set('page', String(page));
-  search.set('pageSize', String(pageSize));
-  if (q) search.set('q', q);
-  if (status) search.set('status', status);
+  search.set('perPage', String(perPage));
 
-  return api.get<PaginatedUsers>(`/api/v1/admin/users?${search.toString()}`, {
+  return api.get<PaginatedUsers>(`/api/admin/users?${search.toString()}`, {
     auth: 'required',
     signal,
   });
+}
+
+export async function countUsers(signal?: AbortSignal): Promise<number> {
+  const result = await api.get<{ total: number }>(`/api/admin/users/count`, {
+    auth: 'required',
+    signal,
+  });
+  return typeof result?.total === 'number' ? result.total : 0;
 }
 
 /** Dettaglio utente */

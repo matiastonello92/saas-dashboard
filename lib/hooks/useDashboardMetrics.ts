@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { getDashboardMetrics, type DashboardMetrics } from '@/lib/services/metrics';
+import { countUsers } from '@/lib/services/users';
 import { ApiError } from '@/lib/services/client';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
@@ -12,6 +13,9 @@ export function useDashboardMetrics() {
   const [data, setData] = useState<DashboardMetrics | null>(null);
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<Error | ApiError | null>(null);
+  const [activeUsers, setActiveUsers] = useState<number | null>(null);
+  const [activeStatus, setActiveStatus] = useState<Status>('idle');
+  const [activeError, setActiveError] = useState<Error | ApiError | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -28,7 +32,7 @@ export function useDashboardMetrics() {
       } catch (e: any) {
         if (!mounted) return;
         if (e?.name === 'AbortError') return;
-        setError(e);
+        setError(resolveError(e));
         setStatus('error');
       }
     }
@@ -40,5 +44,59 @@ export function useDashboardMetrics() {
     };
   }, []);
 
-  return { data, status, error, isLoading: status === 'loading', isError: status === 'error' };
+  useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
+
+    async function loadActiveUsers() {
+      try {
+        setActiveStatus('loading');
+        const total = await countUsers(controller.signal);
+        if (!mounted) return;
+        setActiveUsers(total);
+        setActiveStatus('success');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (e: any) {
+        if (!mounted || e?.name === 'AbortError') return;
+        setActiveError(resolveError(e));
+        setActiveStatus('error');
+      }
+    }
+
+    loadActiveUsers();
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
+  }, []);
+
+  return {
+    data,
+    status,
+    error,
+    isLoading: status === 'loading',
+    isError: status === 'error',
+    activeUsers: {
+      value: activeUsers,
+      status: activeStatus,
+      error: activeError,
+    },
+  };
+}
+
+function resolveError(error: unknown): Error | ApiError {
+  if (error instanceof ApiError) {
+    if (error.message && error.message !== 'API error') {
+      return error;
+    }
+    const details = error.details as { message?: string } | undefined;
+    const message = details?.message || `Request failed with status ${error.status}`;
+    return new ApiError(message, error.status, error.code, error.details);
+  }
+
+  if (error instanceof Error) {
+    return error;
+  }
+
+  return new Error('Unknown error');
 }
