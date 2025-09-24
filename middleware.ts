@@ -1,63 +1,82 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
+
+const STATIC_FILE_REGEX = /\.(?:png|jpg|jpeg|svg|ico|css|js|txt|webmanifest)$/
+
+type HeadersWithCookies = Headers & {
+  getSetCookie?: () => string[]
+  raw?: () => Record<string, string[]>
+}
+
+function applySetCookies(target: NextResponse, source: Response) {
+  const headerStore = source.headers as HeadersWithCookies
+  const raw = headerStore.raw?.()
+  const cookies = headerStore.getSetCookie?.() ?? (raw ? raw['set-cookie'] ?? [] : [])
+
+  cookies.forEach((cookie) => {
+    target.headers.append('set-cookie', cookie)
+  })
+}
+
+function redirectWithCookies(url: URL, sourceResponse?: Response) {
+  const response = NextResponse.redirect(url)
+  if (sourceResponse) {
+    applySetCookies(response, sourceResponse)
+  }
+  return response
+}
 
 export async function middleware(request: NextRequest) {
-  const res = NextResponse.next()
+  const { pathname, origin } = request.nextUrl
 
-  const publicPaths = ['/login', '/api/qa/session', '/api/health']
-  const { pathname } = request.nextUrl
-
-  const isPublicPath =
-    publicPaths.includes(pathname) ||
+  const isPublic =
+    pathname.startsWith('/login') ||
     pathname.startsWith('/_next/') ||
+    pathname.startsWith('/api/health') ||
+    pathname.startsWith('/api/qa/session') ||
+    pathname.startsWith('/api/qa/admin-check') ||
     pathname === '/favicon.ico' ||
-    /\.(?:png|jpg|jpeg|svg|ico|css|js|txt|webmanifest)$/.test(pathname)
+    STATIC_FILE_REGEX.test(pathname)
 
-  if (isPublicPath) {
-    return res
+  if (isPublic) {
+    return NextResponse.next()
   }
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get: (name: string) => request.cookies.get(name)?.value,
-        set: (name: string, value: string, options?: Record<string, unknown>) => {
-          res.cookies.set(name, value, options)
-        },
-        remove: (name: string, options?: Record<string, unknown>) => {
-          void options
-          res.cookies.delete(name)
-        },
+  let adminRes: Response
+  try {
+    adminRes = await fetch(`${origin}/api/qa/admin-check`, {
+      headers: {
+        cookie: request.headers.get('cookie') ?? '',
       },
-    }
-  )
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    const redirectUrl = new URL('/login', request.url)
-    redirectUrl.searchParams.set('next', pathname)
-    return NextResponse.redirect(redirectUrl)
-  }
-
-  const email = user.email?.toLowerCase() ?? ''
-  const whitelist = (process.env.PLATFORM_ADMINS ?? '')
-    .toLowerCase()
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean)
-  const isAdmin = !!email && whitelist.includes(email)
-
-  if (!isAdmin) {
+      cache: 'no-store',
+    })
+  } catch {
     return NextResponse.redirect(new URL('/login?error=access_denied', request.url))
   }
 
-  return res
+  if (adminRes.status === 401) {
+    const redirectUrl = new URL(`/login?next=${encodeURIComponent(pathname)}`, request.url)
+    return redirectWithCookies(redirectUrl, adminRes)
+  }
+
+  if (!adminRes.ok) {
+    return redirectWithCookies(new URL('/login?error=access_denied', request.url), adminRes)
+  }
+
+  let payload: unknown
+  try {
+    payload = await adminRes.json()
+  } catch {
+    return redirectWithCookies(new URL('/login?error=access_denied', request.url), adminRes)
+  }
+
+  if (typeof payload !== 'object' || payload === null || (payload as { isPlatformAdmin?: unknown }).isPlatformAdmin !== true) {
+    return redirectWithCookies(new URL('/login?error=access_denied', request.url), adminRes)
+  }
+
+  const response = NextResponse.next()
+  applySetCookies(response, adminRes)
+  return response
 }
 
 export const config = {
