@@ -4,11 +4,37 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { getMyPermissions, type MyPermission } from '@/lib/services/me';
 
-export interface Permission extends MyPermission {
+export type Permission = {
+  key: string;
+  scope?: string | null;
   id?: string;
   name?: string;
   resource?: string;
   action?: string;
+};
+
+function normalizePermissions(entries: MyPermission[] | undefined): Permission[] {
+  if (!Array.isArray(entries)) {
+    return [];
+  }
+
+  return entries
+    .map((entry) => {
+      if (typeof entry === 'string') {
+        return { key: entry } satisfies Permission;
+      }
+      if (entry && typeof entry === 'object' && typeof entry.key === 'string') {
+        return { ...entry } satisfies Permission;
+      }
+      return null;
+    })
+    .filter((value): value is Permission => {
+      return !!value && typeof value.key === 'string' && value.key.trim().length > 0;
+    })
+    .map((permission) => ({
+      ...permission,
+      key: permission.key.trim(),
+    }));
 }
 
 export interface PermissionGuardProps {
@@ -26,14 +52,10 @@ export function PermissionGuard({ children, permission, fallback = null }: Permi
     async function loadPermissions() {
       try {
         const data = await getMyPermissions();
-        const permissionList = (data.permissions ?? []) as Permission[];
+        const permissionList = normalizePermissions(data.permissions);
         setPermissions(permissionList);
 
-        const permissionKeys = new Set(
-          permissionList
-            .map((p) => p.key)
-            .filter((key): key is string => typeof key === 'string' && key.length > 0)
-        );
+        const permissionKeys = new Set(permissionList.map((p) => p.key));
         const requiredKey = permission.trim();
 
         setHasPermission(requiredKey.length > 0 && permissionKeys.has(requiredKey));
@@ -69,7 +91,7 @@ export function usePermissions() {
     async function loadPermissions() {
       try {
         const data = await getMyPermissions();
-        const permissionList = (data.permissions ?? []) as Permission[];
+        const permissionList = normalizePermissions(data.permissions);
         setPermissions(permissionList);
         setError(null);
       } catch (err) {
