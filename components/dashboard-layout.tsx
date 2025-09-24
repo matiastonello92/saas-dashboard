@@ -1,24 +1,37 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { 
-  BarChart3, 
-  Users, 
-  DollarSign, 
-  TrendingUp, 
-  Globe, 
-  CreditCard, 
-  Activity, 
-  Settings, 
+import {
+  BarChart3,
+  Users,
+  DollarSign,
+  TrendingUp,
+  Globe,
+  CreditCard,
+  Activity,
+  Settings,
   HelpCircle,
   Menu,
-  X
+  X,
+  LogOut,
 } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { supabaseClient } from "@/lib/supabase"
+import { fetchAdminStatus } from "@/lib/services/me"
+import { signOut } from "@/lib/auth"
 
 const sidebarItems = [
   { icon: BarChart3, label: "Overview", href: "/" },
@@ -39,7 +52,102 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [loadingProfile, setLoadingProfile] = useState(true)
+  const [profileError, setProfileError] = useState<string | null>(null)
+  const [profile, setProfile] = useState<{
+    email: string | null
+    name: string | null
+    avatarUrl: string | null
+    isPlatformAdmin: boolean
+  } | null>(null)
   const pathname = usePathname()
+  const router = useRouter()
+
+  useEffect(() => {
+    let active = true
+    const supabase = supabaseClient()
+
+    async function loadProfile() {
+      try {
+        setLoadingProfile(true)
+        const [{ data: userData, error: userError }, adminStatusResult] = await Promise.all([
+          supabase.auth.getUser(),
+          fetchAdminStatus()
+            .then((value) => ({ value, error: null }))
+            .catch((error: unknown) => ({
+              value: null,
+              error,
+            })),
+        ])
+
+        if (!active) {
+          return
+        }
+
+        if (userError) {
+          throw userError
+        }
+
+        const user = userData?.user ?? null
+        const adminStatus = adminStatusResult.value
+        const email = adminStatus?.email ?? user?.email ?? null
+        const name = (user?.user_metadata?.full_name as string | null | undefined) ?? null
+        const avatarUrl = (user?.user_metadata?.avatar_url as string | null | undefined) ?? null
+
+        setProfile({
+          email,
+          name,
+          avatarUrl,
+          isPlatformAdmin: Boolean(adminStatus?.isPlatformAdmin),
+        })
+        if (adminStatusResult.error) {
+          const adminError = adminStatusResult.error
+          const message = adminError instanceof Error ? adminError.message : 'Unable to verify admin status'
+          setProfileError(message)
+        } else {
+          setProfileError(null)
+        }
+      } catch (error) {
+        if (!active) {
+          return
+        }
+        const message = error instanceof Error ? error.message : 'Unable to load profile'
+        setProfile(null)
+        setProfileError(message)
+      } finally {
+        if (active) {
+          setLoadingProfile(false)
+        }
+      }
+    }
+
+    loadProfile()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const initials = useMemo(() => {
+    if (profile?.name) {
+      return profile.name.trim().slice(0, 2).toUpperCase()
+    }
+    if (profile?.email) {
+      return profile.email.slice(0, 2).toUpperCase()
+    }
+    return 'K'
+  }, [profile])
+
+  const accountLabel = profile?.name || profile?.email || (loadingProfile ? 'Loading…' : 'Account')
+
+  async function handleLogout() {
+    try {
+      await signOut()
+    } catch (error) {
+      console.error('Logout failed', error)
+    } finally {
+      router.push('/login')
+    }
+  }
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
@@ -121,10 +229,47 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           
           <div className="flex items-center space-x-4">
             <div className="text-right">
-              <p className="text-white text-sm font-medium">Admin User</p>
-              <p className="text-white/60 text-xs">admin@klyra.com</p>
+              <p className="text-white text-sm font-medium">
+                {accountLabel}
+              </p>
+              <p className="text-white/60 text-xs">
+                {profile?.email ?? (profileError ? 'Unable to load email' : loadingProfile ? 'Loading…' : '—')}
+              </p>
             </div>
-            <div className="w-8 h-8 bg-gradient-to-r from-cyan-400 to-purple-400 rounded-full"></div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="focus-visible:outline-none"
+                  aria-label="Account menu"
+                >
+                  <Avatar className="ring-2 ring-white/20">
+                    {profile?.avatarUrl ? (
+                      <AvatarImage src={profile.avatarUrl} alt={profile?.name ?? profile?.email ?? 'Profile'} />
+                    ) : null}
+                    <AvatarFallback className="bg-gradient-to-r from-cyan-400 to-purple-400 text-white text-sm font-semibold">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>Signed in</DropdownMenuLabel>
+                <div className="px-2 py-1 text-xs text-muted-foreground break-words">
+                  {profile?.email ?? 'Unknown user'}
+                </div>
+                {profile?.isPlatformAdmin ? (
+                  <div className="px-2 py-1 text-[10px] uppercase tracking-wide text-green-400">
+                    Platform Admin
+                  </div>
+                ) : null}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 

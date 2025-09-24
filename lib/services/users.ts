@@ -6,21 +6,30 @@
 
 import { api } from './client';
 
-export interface UserSummary {
+export type UserSummary = {
   id: string;
-  email: string;
-  display_name?: string;
-  created_at?: string;
+  email: string | null;
+  created_at: string | null;
+  last_sign_in_at: string | null;
+  display_name?: string | null;
   status?: 'active' | 'invited' | 'disabled';
-  // estendere quando disponibile lo schema reale
-}
+};
 
-export interface PaginatedUsers {
-  items: UserSummary[];
-  total: number;
+export type PaginatedUsers = {
+  total: number | null;
+  users: UserSummary[];
   page: number;
-  pageSize: number;
-}
+  perPage: number;
+  nextPage: number | null;
+};
+
+type AdminUsersResponse = {
+  total?: number | null;
+  users?: UserSummary[];
+  page?: number;
+  perPage?: number;
+  nextPage?: number | null;
+};
 
 export interface CreateUserInput {
   email: string;
@@ -39,23 +48,50 @@ export interface UpdateUserInput {
  * Esempio: await listUsers({ page: 1, pageSize: 20, q: 'mario' });
  */
 export async function listUsers(params?: {
-  page?: number;       // default 1
-  pageSize?: number;   // default 20
-  q?: string;          // fulltext query (opzionale)
-  status?: 'active' | 'invited' | 'disabled';
+  page?: number;
+  pageSize?: number;
+  perPage?: number;
   signal?: AbortSignal;
 }): Promise<PaginatedUsers> {
-  const { page = 1, pageSize = 20, q, status, signal } = params ?? {};
+  const { page = 1, pageSize, perPage: perPageParam, signal } = params ?? {};
+  const size = perPageParam ?? pageSize ?? 50;
+  const perPage = Math.min(200, Math.max(1, size));
+
   const search = new URLSearchParams();
   search.set('page', String(page));
-  search.set('pageSize', String(pageSize));
-  if (q) search.set('q', q);
-  if (status) search.set('status', status);
+  search.set('perPage', String(perPage));
 
-  return api.get<PaginatedUsers>(`/api/v1/admin/users?${search.toString()}`, {
+  const response = await api.get<AdminUsersResponse>(`/api/admin/users?${search.toString()}`, {
     auth: 'required',
     signal,
   });
+
+  const users = Array.isArray(response?.users) ? response.users : [];
+  const totalValue = response?.total;
+  const total = typeof totalValue === 'number' ? totalValue : totalValue ?? null;
+
+  return {
+    total,
+    users,
+    page: typeof response?.page === 'number' ? response.page : page,
+    perPage: typeof response?.perPage === 'number' ? response.perPage : perPage,
+    nextPage:
+      typeof response?.nextPage === 'number'
+        ? response.nextPage
+        : response?.nextPage === null
+          ? null
+          : users.length === perPage
+            ? page + 1
+            : null,
+  };
+}
+
+export async function countUsers(signal?: AbortSignal): Promise<number> {
+  const result = await api.get<{ total: number }>(`/api/admin/users/count`, {
+    auth: 'required',
+    signal,
+  });
+  return typeof result?.total === 'number' ? result.total : 0;
 }
 
 /** Dettaglio utente */
