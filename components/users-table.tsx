@@ -3,7 +3,7 @@
 
 import { useState, type ChangeEvent, type MouseEvent } from 'react';
 import { useUsers, type UsersFilter } from '@/lib/hooks/useUsers';
-import { updateUser } from '@/lib/services/users';
+import { updateUser, type PaginatedUsers, type UserSummary } from '@/lib/services/users';
 
 // UI già presenti nel repo (adatta solo i path se differiscono)
 import { Table } from '@/components/ui/table';
@@ -71,10 +71,12 @@ export default function UsersTable() {
     pageSize: 20,
   });
 
-  const total = data?.total ?? 0;
-  const page = filters.page ?? 1;
-  const pageSize = filters.pageSize ?? 20;
+  const paginatedData: PaginatedUsers | null = data ?? null;
+  const total = paginatedData?.total ?? 0;
+  const page = paginatedData?.page ?? filters.page ?? 1;
+  const pageSize = paginatedData?.perPage ?? filters.perPage ?? filters.pageSize ?? 20;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const rows: UserSummary[] = paginatedData?.users ?? [];
 
   function applyFilters(partial: Partial<UsersFilter>) {
     setFilters(prev => ({ ...prev, ...partial }));
@@ -142,7 +144,7 @@ export default function UsersTable() {
       {isError && <div className="text-red-600">Error: {String(error?.message || 'Failed to load')}</div>}
 
       {/* Table */}
-      {!!data?.items?.length && (
+      {!!rows.length && (
         <Table>
           <thead>
             <tr>
@@ -155,7 +157,7 @@ export default function UsersTable() {
             </tr>
           </thead>
           <tbody>
-            {data.items.map((u) => {
+            {rows.map((u) => {
               const orgName = resolveOrganizationName(u);
 
               return (
@@ -187,7 +189,7 @@ export default function UsersTable() {
       )}
 
       {/* Empty */}
-      {!isLoading && !isError && (!data?.items || data.items.length === 0) && (
+      {!isLoading && !isError && rows.length === 0 && (
         <div className="text-sm text-muted-foreground">No users found.</div>
       )}
 
