@@ -2,37 +2,27 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-type CookieAction = {
-  type: 'set' | 'remove'
+type CookiePayload = {
   name: string
-  value?: string
+  value: string
   options?: Record<string, unknown>
 }
 
-function applyCookieActions(response: NextResponse, actions: CookieAction[]) {
-  actions.forEach((action) => {
-    if (action.type === 'set') {
-      response.cookies.set(action.name, action.value ?? '', action.options)
-    } else {
-      response.cookies.delete(action.name)
-    }
-  })
-}
-
 export async function GET(request: NextRequest) {
-  const actions: CookieAction[] = []
+  const cookiesToSet: CookiePayload[] = []
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get: (name: string) => request.cookies.get(name)?.value,
-        set: (name: string, value: string, options?: Record<string, unknown>) => {
-          actions.push({ type: 'set', name, value, options })
+        getAll() {
+          return request.cookies.getAll()
         },
-        remove: (name: string, options?: Record<string, unknown>) => {
-          actions.push({ type: 'remove', name, options })
+        setAll(cookieList) {
+          cookieList.forEach((cookie) => {
+            cookiesToSet.push(cookie)
+          })
         },
       },
     }
@@ -44,7 +34,9 @@ export async function GET(request: NextRequest) {
 
   if (!user) {
     const response = NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    applyCookieActions(response, actions)
+    cookiesToSet.forEach(({ name, value, options }) => {
+      response.cookies.set({ name, value, ...(options ?? {}) })
+    })
     return response
   }
 
@@ -61,7 +53,9 @@ export async function GET(request: NextRequest) {
     permissions: isPlatformAdmin ? ['platform:admin'] : [],
     role: isPlatformAdmin ? 'platform_admin' : 'user',
   })
-  applyCookieActions(response, actions)
+  cookiesToSet.forEach(({ name, value, options }) => {
+    response.cookies.set({ name, value, ...(options ?? {}) })
+  })
 
   return response
 }

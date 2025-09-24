@@ -9,44 +9,28 @@ export async function GET() {
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
   const cookieStore = cookies()
+
   const supabase = createServerClient(url, anon, {
     cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value
+      getAll() {
+        return cookieStore.getAll()
       },
-      set(
-        name: string,
-        value: string,
-        options?: {
-          domain?: string
-          path?: string
-          sameSite?: 'lax' | 'strict' | 'none'
-          maxAge?: number
-          expires?: Date
-          httpOnly?: boolean
-          secure?: boolean
-        }
-      ) {
-        if (options) {
-          cookieStore.set({ name, value, ...options })
-        } else {
-          cookieStore.set(name, value)
-        }
-      },
-      remove(name: string) {
-        cookieStore.delete(name)
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          cookieStore.set({ name, value, ...(options ?? {}) })
+        })
       },
     },
   })
 
-  const { data: userData, error: userErr } = await supabase.auth.getUser()
-  const user = userData?.user ?? null
-  if (!user || userErr) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const adminDb = createClient(url, service)
-
   const { data: row, error: qErr } = await adminDb
     .from('platform_admins')
     .select('user_id')
@@ -54,29 +38,10 @@ export async function GET() {
     .limit(1)
     .maybeSingle()
 
-  const isPlatformAdmin = !!row && !qErr
-
-  const base = { isPlatformAdmin, email: user.email ?? null }
-
-  if (process.env.DEBUG_ADMIN_CHECK === '1') {
-    return NextResponse.json({
-      ...base,
-      debug: {
-        urlHash: hash(url),
-        userId: user.id,
-        qErr: qErr ? { message: qErr.message, details: qErr.details } : null,
-        rowFound: !!row,
-      },
-    })
+  if (qErr) {
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 
-  return NextResponse.json(base)
-}
-
-function hash(s: string) {
-  let h = 0
-  for (let i = 0; i < s.length; i++) {
-    h = (h * 31 + s.charCodeAt(i)) | 0
-  }
-  return h
+  const isPlatformAdmin = !!row
+  return NextResponse.json({ isPlatformAdmin, email: user.email ?? null })
 }
