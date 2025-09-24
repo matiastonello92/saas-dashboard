@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import type { CookieOptions, SupabaseClient } from '@supabase/supabase-js';
+
+type CookieOptions = {
+  domain?: string;
+  path?: string;
+  sameSite?: 'lax' | 'strict' | 'none';
+  maxAge?: number;
+  expires?: Date;
+  httpOnly?: boolean;
+  secure?: boolean;
+};
 
 function requiredEnv(name: string, value: string | undefined): string {
   if (!value) {
@@ -16,7 +25,7 @@ type CookieAdapter = {
 };
 
 export interface SSRClientResult {
-  supabase: SupabaseClient;
+  supabase: ReturnType<typeof createServerClient>;
   response: NextResponse;
   applyCookies: (response: NextResponse) => NextResponse;
 }
@@ -32,15 +41,10 @@ export function createSSRClient(req: NextRequest): SSRClientResult {
       return req.cookies.get(name)?.value;
     },
     set(name, value, options) {
-      res.cookies.set({ name, value, ...(options ?? {}) });
+      res.cookies.set(name, value, options);
     },
-    remove(name, options) {
-      res.cookies.set({
-        name,
-        value: '',
-        ...(options ?? {}),
-        maxAge: 0,
-      });
+    remove(name) {
+      res.cookies.delete(name);
     },
   };
 
