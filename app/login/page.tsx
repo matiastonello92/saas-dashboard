@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { signInWithEmailPassword } from '@/lib/auth';
@@ -11,8 +10,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const searchParams = useSearchParams();
-  const next = searchParams.get('next') || '/';
+  const [next, setNext] = useState<string>('/');
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const target = searchParams.get('next') || '/';
+    setNext(target);
+  }, []);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
