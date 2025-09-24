@@ -1,5 +1,7 @@
 "use client"
 
+import { useEffect } from 'react'
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { TrendingUp, TrendingDown } from "lucide-react"
 import { useDashboardMetrics } from '@/lib/hooks/useDashboardMetrics';
@@ -61,7 +63,18 @@ function isMetricCard(value: unknown): value is MetricCard {
 }
 
 export function MetricsCards() {
-  const { data: liveMetrics } = useDashboardMetrics();
+  const {
+    data: liveMetrics,
+    activeUsers,
+    activeUsersStatus,
+    activeUsersError,
+  } = useDashboardMetrics();
+
+  useEffect(() => {
+    if (activeUsersStatus === 'error' && activeUsersError) {
+      console.warn('Failed to load active users count', activeUsersError);
+    }
+  }, [activeUsersStatus, activeUsersError]);
 
   let liveMetricList: MetricCard[] = [];
 
@@ -71,7 +84,23 @@ export function MetricsCards() {
     liveMetricList = Object.values(liveMetrics as Record<string, unknown>).filter(isMetricCard);
   }
 
-  const source: MetricCard[] = liveMetricList.length > 0 ? liveMetricList : metrics;
+  const baseMetrics: MetricCard[] = liveMetricList.length > 0 ? liveMetricList : metrics;
+
+  const resolvedActiveUsersValue =
+    activeUsersStatus === 'success' && typeof activeUsers === 'number'
+      ? new Intl.NumberFormat('en-US').format(activeUsers)
+      : '—';
+
+  const source: MetricCard[] = baseMetrics.map((metric) => {
+    if (metric.title !== 'Active Users') {
+      return metric;
+    }
+
+    return {
+      ...metric,
+      value: resolvedActiveUsersValue,
+    };
+  });
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
