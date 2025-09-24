@@ -36,11 +36,22 @@ export type AdminUserSummary = {
   organizations?: Array<Record<string, unknown>> | null
 }
 
+function createAdminClient(url: string, serviceRole: string) {
+  return createClient(url, serviceRole, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
+}
+
+type AdminClient = ReturnType<typeof createAdminClient>
+
 type EnsureAdminSuccess = {
   ok: true
   cookies: CookiePayload[]
   user: SupabaseAuthUser
-  adminClient: ReturnType<typeof createClient>
+  adminClient: AdminClient
 }
 
 type EnsureAdminFailure = {
@@ -95,12 +106,7 @@ export async function ensureAdmin(request: NextRequest): Promise<EnsureAdminResu
     }
   }
 
-  const adminClient = createClient(url, serviceRole, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  })
+  const adminClient = createAdminClient(url, serviceRole)
 
   const { error: platformError, data: platformRow } = await adminClient
     .from('platform_admins')
@@ -278,7 +284,7 @@ type ListUsersResult = {
 }
 
 export async function fetchUsersPage(
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: AdminClient,
   page: number,
   perPage: number
 ): Promise<{
@@ -308,7 +314,7 @@ export async function fetchUsersPage(
 }
 
 export async function fetchAllUsers(
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: AdminClient,
   pageSize: number,
   maxPages = 50
 ): Promise<{ users: AdminUser[]; total?: number }> {
