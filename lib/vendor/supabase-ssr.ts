@@ -1,6 +1,6 @@
-import { createClient, type SupabaseClient, type SupabaseClientOptions } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
-// Tipo locale per opzioni cookie (compatibile con NextResponse.cookies.set/delete)
+// Tipi locali (evitano dipendenze di tipo da supabase-js)
 export type CookieOptions = {
   domain?: string;
   path?: string;
@@ -17,9 +17,12 @@ export type CookieMethods = {
   remove(name: string, options?: Partial<CookieOptions>): void;
 };
 
+// Sostituto locale di SupabaseClientOptions (forma ampia, permissiva)
+export type SupabaseClientOptionsLike = Record<string, unknown>;
+
 export interface CreateServerClientOptions {
   cookies: CookieMethods;
-  options?: SupabaseClientOptions;
+  options?: SupabaseClientOptionsLike;
 }
 
 export function createServerClient<
@@ -29,8 +32,8 @@ export function createServerClient<
   supabaseUrl: string,
   supabaseKey: string,
   { cookies, options }: CreateServerClientOptions
-): SupabaseClient<Database, SchemaName> {
-  const defaultOptions: SupabaseClientOptions = {
+) {
+  const defaultOptions = {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -44,22 +47,31 @@ export function createServerClient<
     cookies,
   };
 
+  const rawOptions = (options ?? {}) as SupabaseClientOptionsLike;
+  const typedOptions = rawOptions as SupabaseClientOptionsLike & {
+    auth?: Record<string, unknown>;
+    global?: {
+      headers?: Record<string, unknown>;
+    } & Record<string, unknown>;
+    cookies?: CookieMethods;
+  };
+
   return createClient<Database, SchemaName>(supabaseUrl, supabaseKey, {
     ...defaultOptions,
-    ...options,
+    ...rawOptions,
     auth: {
       ...defaultOptions.auth,
-      ...options?.auth,
+      ...(typedOptions.auth as Record<string, unknown> | undefined),
     },
     global: {
       ...defaultOptions.global,
-      ...options?.global,
+      ...typedOptions.global,
       headers: {
         ...defaultOptions.global?.headers,
-        ...options?.global?.headers,
+        ...(typedOptions.global?.headers as Record<string, unknown> | undefined),
       },
     },
-    cookies: cookies ?? options?.cookies,
+    cookies: cookies ?? typedOptions.cookies,
   });
 }
 
