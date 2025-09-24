@@ -1,10 +1,10 @@
 // lib/services/users.ts
 // Service per gestione utenti lato admin.
-// Fonte primaria: API Klyra -> /api/v1/admin/users
-// Autenticazione: Supabase JWT (gestito da api client).
+// Fonte primaria: API interne -> /api/admin/users
+// Autenticazione: gestita lato server dalle route interne.
 // Nota: tipi dettagliati verranno raffinati quando lo schema dell'API è definitivo.
 
-import { api } from './client';
+import { api, ApiError } from './client';
 
 export interface UserSummary {
   id: string;
@@ -12,6 +12,9 @@ export interface UserSummary {
   display_name?: string;
   created_at?: string;
   status?: 'active' | 'invited' | 'disabled';
+  org_name?: string;
+  organization?: Record<string, unknown> | null;
+  organizations?: Array<Record<string, unknown>> | null;
   // estendere quando disponibile lo schema reale
 }
 
@@ -20,6 +23,7 @@ export interface PaginatedUsers {
   total: number;
   page: number;
   pageSize: number;
+  nextPage?: number | null;
 }
 
 export interface CreateUserInput {
@@ -32,6 +36,45 @@ export interface UpdateUserInput {
   display_name?: string;
   status?: 'active' | 'disabled';
   // campi addizionali quando disponibili
+}
+
+type UsersListResponse = {
+  users?: UserSummary[];
+  page?: number;
+  perPage?: number;
+  nextPage?: number | null;
+  total?: number;
+};
+
+type UsersCountResponse = {
+  total?: number;
+};
+
+async function fetchJson<T>(path: string, init: RequestInit & { signal?: AbortSignal } = {}): Promise<T> {
+  const response = await fetch(path, {
+    ...init,
+    headers: {
+      Accept: 'application/json',
+      ...(init.headers ?? {}),
+    },
+    cache: init.cache ?? 'no-store',
+  });
+
+  const contentType = response.headers.get('content-type') ?? '';
+  const isJson = contentType.includes('application/json');
+  const payload = isJson ? await response.json().catch(() => null) : await response.text().catch(() => null);
+
+  if (!response.ok) {
+    const details =
+      (isJson && payload && typeof payload === 'object' &&
+        ((payload as Record<string, unknown>).error || (payload as Record<string, unknown>).message)) ||
+      response.statusText ||
+      'Request failed';
+
+    throw new ApiError(String(details), response.status);
+  }
+
+  return (payload as T) ?? (undefined as unknown as T);
 }
 
 /**
@@ -48,14 +91,57 @@ export async function listUsers(params?: {
   const { page = 1, pageSize = 20, q, status, signal } = params ?? {};
   const search = new URLSearchParams();
   search.set('page', String(page));
-  search.set('pageSize', String(pageSize));
+  search.set('perPage', String(pageSize));
   if (q) search.set('q', q);
   if (status) search.set('status', status);
 
-  return api.get<PaginatedUsers>(`/api/v1/admin/users?${search.toString()}`, {
-    auth: 'required',
+  const data = await fetchJson<UsersListResponse>(`/api/admin/users?${search.toString()}`, {
+    method: 'GET',
     signal,
   });
+
+  const items = Array.isArray(data.users) ? data.users : [];
+  const resolvedPage = typeof data.page === 'number' && Number.isFinite(data.page) ? data.page : page;
+  const resolvedPerPage = typeof data.perPage === 'number' && Number.isFinite(data.perPage) ? data.perPage : pageSize;
+  const total = typeof data.total === 'number'
+    ? data.total
+    : (resolvedPage - 1) * resolvedPerPage + items.length;
+
+  const nextPage = typeof data.nextPage === 'number'
+    ? data.nextPage
+    : data.nextPage === null
+      ? null
+      : undefined;
+
+  return {
+    items,
+    total,
+    page: resolvedPage,
+    pageSize: resolvedPerPage,
+    nextPage,
+  };
+}
+
+export async function countUsers(params?: {
+  q?: string;
+  status?: 'active' | 'invited' | 'disabled';
+  signal?: AbortSignal;
+}): Promise<number> {
+  const { q, status, signal } = params ?? {};
+  const search = new URLSearchParams();
+  if (q) search.set('q', q);
+  if (status) search.set('status', status);
+  const query = search.toString();
+
+  const data = await fetchJson<UsersCountResponse>(
+    query ? `/api/admin/users/count?${query}` : '/api/admin/users/count',
+    {
+      method: 'GET',
+      signal,
+    }
+  );
+
+  return typeof data.total === 'number' ? data.total : 0;
 }
 
 /** Dettaglio utente */
