@@ -6,22 +6,30 @@
 
 import { api } from './client';
 
-export interface UserSummary {
+export type UserSummary = {
   id: string;
   email: string | null;
-  created_at?: string | null;
-  last_sign_in_at?: string | null;
-  display_name?: string;
+  created_at: string | null;
+  last_sign_in_at: string | null;
+  display_name?: string | null;
   status?: 'active' | 'invited' | 'disabled';
-}
+};
 
-export interface PaginatedUsers {
+export type PaginatedUsers = {
+  total: number | null;
   users: UserSummary[];
   page: number;
   perPage: number;
   nextPage: number | null;
-  total?: number;
-}
+};
+
+type AdminUsersResponse = {
+  total?: number | null;
+  users?: UserSummary[];
+  page?: number;
+  perPage?: number;
+  nextPage?: number | null;
+};
 
 export interface CreateUserInput {
   email: string;
@@ -53,10 +61,29 @@ export async function listUsers(params?: {
   search.set('page', String(page));
   search.set('perPage', String(perPage));
 
-  return api.get<PaginatedUsers>(`/api/admin/users?${search.toString()}`, {
+  const response = await api.get<AdminUsersResponse>(`/api/admin/users?${search.toString()}`, {
     auth: 'required',
     signal,
   });
+
+  const users = Array.isArray(response?.users) ? response.users : [];
+  const totalValue = response?.total;
+  const total = typeof totalValue === 'number' ? totalValue : totalValue ?? null;
+
+  return {
+    total,
+    users,
+    page: typeof response?.page === 'number' ? response.page : page,
+    perPage: typeof response?.perPage === 'number' ? response.perPage : perPage,
+    nextPage:
+      typeof response?.nextPage === 'number'
+        ? response.nextPage
+        : response?.nextPage === null
+          ? null
+          : users.length === perPage
+            ? page + 1
+            : null,
+  };
 }
 
 export async function countUsers(signal?: AbortSignal): Promise<number> {

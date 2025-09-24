@@ -3,7 +3,8 @@
 
 import { useState, type ChangeEvent, type MouseEvent } from 'react';
 import { useUsers, type UsersFilter } from '@/lib/hooks/useUsers';
-import { updateUser, type PaginatedUsers, type UserSummary } from '@/lib/services/users';
+import { updateUser } from '@/lib/services/users';
+import type { PaginatedUsers, UserSummary } from '@/lib/services/users';
 
 // UI già presenti nel repo (adatta solo i path se differiscono)
 import { Table } from '@/components/ui/table';
