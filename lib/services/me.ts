@@ -4,14 +4,17 @@
 
 import { api } from './client';
 
-export interface MyPermission {
-  key: string;           // es. 'admin:read'
-  scope?: string | null; // es. 'org:123', 'location:abc'
-}
+export type MyPermission =
+  | string
+  | {
+      key: string; // es. 'admin:read'
+      scope?: string | null; // es. 'org:123', 'location:abc'
+    };
 
 export interface MyPermissionsResponse {
+  email: string | null;
   permissions: MyPermission[];
-  roles?: string[];      // opzionale: elenco ruoli risolti lato API
+  role: 'platform_admin' | 'user';
 }
 
 export interface SessionDebug {

@@ -1,16 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabaseClient } from '@/lib/supabase';
+import { getMyPermissions } from '@/lib/services/me';
 
-export async function isPlatformAdminClient(): Promise<boolean> {
-  const supabase = supabaseClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) {
+async function loadAdminFlag(): Promise<boolean> {
+  try {
+    const data = await getMyPermissions();
+    const list = Array.isArray(data?.permissions) ? data.permissions : [];
+    return list.includes('platform:admin');
+  } catch (error) {
+    console.error('Failed to resolve admin permissions', error);
     return false;
   }
-  const { data, error } = await supabase.rpc('is_platform_admin');
-  return !error && Boolean(data);
+}
+
+export async function isPlatformAdminClient(): Promise<boolean> {
+  return loadAdminFlag();
 }
 
 export function usePlatformAdminGate() {
@@ -19,14 +24,13 @@ export function usePlatformAdminGate() {
 
   useEffect(() => {
     let mounted = true;
-    (async () => {
-      const ok = await isPlatformAdminClient();
+    loadAdminFlag().then((value) => {
       if (!mounted) {
         return;
       }
-      setIsAdmin(ok);
+      setIsAdmin(value);
       setReady(true);
-    })();
+    });
 
     return () => {
       mounted = false;
