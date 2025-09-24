@@ -9,17 +9,32 @@ export async function GET() {
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
   const cookieStore = cookies()
-  // @ts-expect-error: loose types to avoid TS friction
   const supabase = createServerClient(url, anon, {
     cookies: {
-      get: (name) => cookieStore.get(name)?.value,
-      set: (name, value, options) => {
-        const opts = options ?? {}
-        cookieStore.set({ name, value, ...opts })
+      get(name: string) {
+        return cookieStore.get(name)?.value
       },
-      remove: (name, options) => {
-        const opts = options ?? {}
-        cookieStore.set({ name, value: '', ...opts, maxAge: 0 })
+      set(
+        name: string,
+        value: string,
+        options?: {
+          domain?: string
+          path?: string
+          sameSite?: 'lax' | 'strict' | 'none'
+          maxAge?: number
+          expires?: Date
+          httpOnly?: boolean
+          secure?: boolean
+        }
+      ) {
+        if (options) {
+          cookieStore.set({ name, value, ...options })
+        } else {
+          cookieStore.set(name, value)
+        }
+      },
+      remove(name: string) {
+        cookieStore.delete(name)
       },
     },
   })
